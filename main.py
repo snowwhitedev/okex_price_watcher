@@ -78,7 +78,7 @@ def exit():
 ''' Thread for watching BTC price '''
 def watch_btc_price(min_threshold_val, max_threshold_val, sleep_time_val):
     global pause_forced
-
+    print("min_threshold_val", min_threshold_val)
     while(not pause_forced):
         jsonresp = requests.get(API_URL_BTC_USD).json()
         last_price = jsonresp['data']['last']
