@@ -1,12 +1,1 @@
-{
-  "btc_usdt": {
-    "min": 30000,
-    "max": 35000,
-    "sleep_time": 20
-  },
-  "usdt_cny": {
-    "min": 6.0,
-    "max": 6.5,
-    "sleep_time": 20
-  }
-}
+{"btc_usdt": {"min": "30012", "max": "35080", "sleep_time": "15"}, "usdt_cny": {"min": "5.8", "max": "6.7", "sleep_time": "18"}}
