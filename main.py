@@ -8,6 +8,7 @@ from decimal import *
 from utils import read_default_settings, save_default_settings
 
 API_URL_BTC_USD = 'https://www.okex.com/api/index/v3/BTC-USD/constituents'
+API_URL_ETH_USD = 'https://www.okex.com/api/index/v3/ETH-USD/constituents'
 API_URL_CNY_UDST = 'https://www.okex.com/v3/c2c/otc-ticker/quotedPrice?baseCurrency=USDT&quoteCurrency=CNY&side=sell&amount=&standard=1&paymentMethod=bank'
 
 global pause_forced
@@ -32,6 +33,18 @@ def start_watch():
         return
     btc_usdt_sleep_time = btc_sleep_time_field.get()
 
+    eth_usdt_min = eth_min_threshold_field.get()
+    if not eth_usdt_min:
+        messagebox.showerror("Input Error", "Please input BTH-USDT minimum threshold")
+        pause_forced = True
+        return
+    eth_usdt_max = eth_max_threshold_field.get()
+    if not eth_usdt_max:
+        pause_forced = True
+        messagebox.showerror("Input Error", "Please input ETH-USDT maximum threshold")
+        return
+    eth_usdt_sleep_time = eth_sleep_time_field.get()
+
     usdt_cny_min = sell_min_threshold_field.get()
     if not usdt_cny_min:
         messagebox.showerror("Input Error", "Please input USDT-CNY minimum threshold")
@@ -49,6 +62,11 @@ def start_watch():
         "max": btc_usdt_max,
         "sleep_time": btc_usdt_sleep_time
     }
+    eth_usdt_settings = {
+        "min": eth_usdt_min,
+        "max": eth_usdt_max,
+        "sleep_time": eth_usdt_sleep_time
+    }
     usdt_cny_settings = {
         "min": usdt_cny_min,
         "max": usdt_cny_max,
@@ -56,11 +74,15 @@ def start_watch():
     }
 
     save_default_settings("btc_usdt", btc_usdt_settings)
+    save_default_settings("eth_usdt", eth_usdt_settings)
     save_default_settings("usdt_cny", usdt_cny_settings)
 
     pause_forced = False
-    watch_btc_thread = threading.Thread(target=watch_btc_price, args=(btc_usdt_min, btc_usdt_max, btc_usdt_sleep_time,))
+    watch_btc_thread = threading.Thread(target=watch_btc_price, args=(API_URL_BTC_USD, "BTC", btc_usdt_min, btc_usdt_max, btc_usdt_sleep_time,))
     watch_btc_thread.start()
+
+    watch_eth_thread = threading.Thread(target=watch_btc_price, args=(API_URL_ETH_USD, "ETH", eth_usdt_min, eth_usdt_max, eth_usdt_sleep_time,))
+    watch_eth_thread.start()
 
     watch_sell_thread = threading.Thread(target=watch_sell_price, args=(usdt_cny_min, usdt_cny_max, usdt_cny_sleep_time,))
     watch_sell_thread.start()
@@ -76,27 +98,29 @@ def exit():
     win.destroy()
 
 ''' Thread for watching BTC price '''
-def watch_btc_price(min_threshold_val, max_threshold_val, sleep_time_val):
+def watch_btc_price(api_url, asset_name, min_threshold_val, max_threshold_val, sleep_time_val):
     global pause_forced
     print("min_threshold_val", min_threshold_val)
     while(not pause_forced):
-        jsonresp = requests.get(API_URL_BTC_USD).json()
+        jsonresp = requests.get(api_url).json()
         last_price = jsonresp['data']['last']
+
+        print(asset_name)
 
         if Decimal(last_price) < Decimal(min_threshold_val):
             messagebox.showinfo(
-                "Bitcoin Price Alert", f"Current Bitcoin price is below than  minimum threshold.\nCurrent Bitcoin Price: {last_price}"
+                f"{asset_name} Price Alert", f"Current {asset_name} price is below than  minimum threshold.\nCurrent {asset_name} Price: {last_price}"
             )
         
         if Decimal(last_price) > Decimal(max_threshold_val):
             messagebox.showinfo(
-                "Price Alert", f"Current Bitcoin price is over than maximum threshold.\nCurrent Bitcoin Price: {last_price}"
+                "Price Alert", f"Current {asset_name} price is over than maximum threshold.\nCurrent {asset_name} Price: {last_price}"
             )
     
-        print(f"BTC price... {last_price}")
+        print(f"{asset_name} price... {last_price}")
         time.sleep(int(sleep_time_val))
 
-    print("Watching BTC is finished")
+    print(f"Watching {asset_name} is finished")
 
 def watch_sell_price(min_threshold_val, max_threshold_val, sleep_time_val):
     global pause_forced
@@ -124,19 +148,24 @@ def watch_sell_price(min_threshold_val, max_threshold_val, sleep_time_val):
 
 ## Read current setings
 btc_usdt_settings = read_default_settings("btc_usdt")
+eth_usdt_settings = read_default_settings("eth_usdt")
 usdt_cny_settings = read_default_settings("usdt_cny")
 
 win = Tk()
 win.wm_attributes('-topmost', 1)
 win.title("OKEX Price Monitor")
-win.geometry("280x400")
+win.geometry("280x500")
 win.configure(background='Orange1')
 pause_forced = True
 
+BTC_FRAME_ROW = 0
+ETH_FRAME_ROW = 1
+SELL_FRAME_ROW = 2
+ACTION_FRAME_ROW = 3
 #Bitcoin frame
 btc_frame = LabelFrame(win, text='BTC-USDT')
 btc_frame.configure(background='LightBlue2')
-btc_frame.grid(row=0, column=0, sticky=NSEW, padx=8, pady=8)
+btc_frame.grid(row=BTC_FRAME_ROW, column=0, sticky=NSEW, padx=8, pady=8)
  
 #Min Threshold
 btc_min_threshold = Label(btc_frame, text='Min Threshold: ').grid(row=0, column=0)
@@ -156,10 +185,33 @@ btc_sleep_time_field = Entry(btc_frame, textvariable=btc_sleep_time)
 btc_sleep_time_field.insert(END, btc_usdt_settings["sleep_time"])
 btc_sleep_time_field.grid(row=2, column=1, padx=8, pady=8)
 
+#ETH frame
+eth_frame = LabelFrame(win, text='ETH-USDT')
+eth_frame.configure(background='LightBlue2')
+eth_frame.grid(row=1, column=0, sticky=NSEW, padx=8, pady=8)
+ 
+#Min Threshold
+eth_min_threshold = Label(eth_frame, text='Min Threshold: ').grid(row=0, column=0)
+eth_min_threshold_field = Entry(eth_frame, textvariable=eth_min_threshold)
+eth_min_threshold_field.insert(END, eth_usdt_settings["min"])
+eth_min_threshold_field.grid(row=0, column=1)
+
+#Max Threshold
+eth_max_threshold = Label(eth_frame, text='Max Threshold:').grid(row=1, column=0, pady=2)
+eth_max_threshold_field = Entry(eth_frame, textvariable=eth_max_threshold)
+eth_max_threshold_field.insert(END, eth_usdt_settings["max"])
+eth_max_threshold_field.grid(row=1, column=1, padx=8, pady=8)
+
+#API sleeping time
+eth_sleep_time = Label(eth_frame, text='Sleep Time(seconds):').grid(row=2, column=0, pady=2)
+eth_sleep_time_field = Entry(eth_frame, textvariable=eth_sleep_time)
+eth_sleep_time_field.insert(END, eth_usdt_settings["sleep_time"])
+eth_sleep_time_field.grid(row=2, column=1, padx=8, pady=8)
+
 # Sell frame
 sell_frame = LabelFrame(win, text='USDT-CNY')
 sell_frame.configure(background='LightBlue2')
-sell_frame.grid(row=1, column=0, sticky=NSEW, padx=8, pady=8)
+sell_frame.grid(row=SELL_FRAME_ROW, column=0, sticky=NSEW, padx=8, pady=8)
  
 ## Min Threshold
 sell_min_threshold = Label(sell_frame, text='Min Threshold: ').grid(row=0, column=0)
@@ -181,7 +233,7 @@ sell_sleep_time_field.grid(row=2, column=1, padx=8, pady=8)
 
 action_frame = LabelFrame(win, text='Action panel')
 action_frame.configure(background='LightBlue2')
-action_frame.grid(row=2, column=0, sticky=NSEW, padx=8, pady=4)
+action_frame.grid(row=ACTION_FRAME_ROW, column=0, sticky=NSEW, padx=8, pady=4)
 
 btn_start = Button(action_frame, text="Start", width=12, command=start_watch)
 btn_start.grid(row=3, column=0, padx=8, pady=4)
